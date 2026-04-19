@@ -8,12 +8,9 @@ from datetime import datetime
 st.set_page_config(
     page_title="MK Ranking Analysis",
     page_icon="📊",
-    layout="centered"
+    layout="wide"
 )
 
-# ============================================================
-#  🔒 로그인
-# ============================================================
 def check_login():
     if st.session_state.get("authenticated"):
         return True
@@ -37,9 +34,6 @@ def check_login():
             st.error("비밀번호가 올바르지 않습니다.")
     return False
 
-# ============================================================
-#  ⚙️ 분석 함수 (버그 수정 포함)
-# ============================================================
 def strip_html(text):
     return re.sub(r'<[^>]+>', '', text)
 
@@ -53,7 +47,6 @@ def fetch_items(keyword, limit):
     return resp.json().get('items', [])
 
 def parse_df(items, my_store):
-    """실제 네이버 검색 순위(i)를 기준으로 순위 부여 — price==0 건너뛰어도 순위 왜곡 없음"""
     rows = []
     for i, item in enumerate(items, 1):
         price = int(item.get('lprice', 0))
@@ -90,18 +83,21 @@ def make_rows(df, min_price):
     html = ""
     for _, r in df.iterrows():
         is_mine  = r['구분'] == 'mine'
+        row_bg   = 'background:rgba(124,58,237,.08);' if is_mine else ''
         badge    = '<span class="mk-badge-mine">⭐ 내 상품</span>' if is_mine else '<span class="mk-badge-comp">경쟁사</span>'
         rank_tag = f'<span class="mk-rank-mine">{r["순위"]}</span>' if is_mine else f'<span class="mk-rank-comp">{r["순위"]}</span>'
-        img      = f'<img src="{r["썸네일"]}" width="44" style="border-radius:6px;vertical-align:middle;">' if r['썸네일'] else '—'
+        img      = f'<img src="{r["썸네일"]}" width="60" height="60" style="border-radius:8px;vertical-align:middle;object-fit:cover;">' if r['썸네일'] else '—'
         p_cls    = 'mk-price-low' if r['가격'] == min_price else 'mk-price'
         l_cls    = 'mk-len-bad' if r['글자수'] > 40 else 'mk-len-ok'
         l_warn   = ' ⚠️' if r['글자수'] > 40 else ''
         link     = f'<a href="{r["링크"]}" target="_blank">보기 →</a>' if r['링크'] else '—'
-        name     = r['상품명'][:36] + '…' if len(r['상품명']) > 36 else r['상품명']
-        html    += f"""<tr>
-          <td>{rank_tag}</td><td>{badge}</td><td>{img}</td>
+        name     = r['상품명'][:50] + '…' if len(r['상품명']) > 50 else r['상품명']
+        html    += f"""<tr style="{row_bg}">
+          <td style="text-align:center">{rank_tag}</td>
+          <td style="text-align:center">{badge}</td>
+          <td style="text-align:center">{img}</td>
           <td class="mk-name">{name}</td>
-          <td><span class="{l_cls}">{r['글자수']}자{l_warn}</span></td>
+          <td style="text-align:center"><span class="{l_cls}">{r['글자수']}자{l_warn}</span></td>
           <td class="{p_cls}">{r['가격']:,}원</td>
           <td class="mk-mall">{r['업체명']}</td>
           <td class="mk-link">{link}</td>
@@ -177,55 +173,55 @@ def build_result_html(df, store, target, limit):
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
     * {{ font-family:'Noto Sans KR',sans-serif; box-sizing:border-box; margin:0; padding:0; }}
-    body {{ background:linear-gradient(135deg,#0f0c29,#302b63,#24243e); padding:24px; min-height:100vh; }}
-    .mk-stat-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }}
-    .mk-stat {{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px 18px; }}
-    .mk-stat-label {{ color:rgba(255,255,255,.4); font-size:11px; letter-spacing:.05em; margin-bottom:6px; }}
-    .mk-stat-value {{ color:#fff; font-size:22px; font-weight:700; }}
-    .mk-stat-unit {{ font-size:13px; color:rgba(255,255,255,.4); margin-left:2px; }}
-    .mk-stat-sub {{ color:rgba(255,255,255,.3); font-size:11px; margin-top:4px; }}
+    body {{ background:linear-gradient(135deg,#0f0c29,#302b63,#24243e); padding:28px 32px; min-height:100vh; }}
+    .mk-stat-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }}
+    .mk-stat {{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:16px; padding:22px 24px; }}
+    .mk-stat-label {{ color:rgba(255,255,255,.5); font-size:13px; letter-spacing:.04em; margin-bottom:8px; }}
+    .mk-stat-value {{ color:#fff; font-size:28px; font-weight:700; }}
+    .mk-stat-unit {{ font-size:15px; color:rgba(255,255,255,.4); margin-left:3px; }}
+    .mk-stat-sub {{ color:rgba(255,255,255,.35); font-size:13px; margin-top:6px; }}
     .mk-target-card {{ background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(139,92,246,.08));
-      border:1px solid rgba(139,92,246,.35); border-radius:14px; padding:18px 20px; margin-bottom:20px; }}
-    .mk-target-title {{ color:#c4b5fd; font-size:12px; font-weight:600; letter-spacing:.06em; margin-bottom:14px; }}
-    .mk-card-row {{ display:flex; gap:20px; flex-wrap:wrap; }}
-    .mk-card-item {{ flex:1; min-width:160px; }}
-    .mk-ci-label {{ color:rgba(255,255,255,.38); font-size:11px; margin-bottom:4px; }}
-    .mk-ci-value {{ color:#fff; font-size:14px; font-weight:600; }}
-    .mk-ci-sub {{ color:rgba(255,255,255,.4); font-size:12px; margin-top:3px; }}
-    .mk-no-target {{ color:#f87171; font-size:13px; margin-bottom:16px; }}
-    .mk-section-label {{ color:rgba(255,255,255,.7); font-size:12px; font-weight:600;
-      letter-spacing:.06em; text-transform:uppercase;
-      padding-bottom:10px; margin-bottom:12px; margin-top:20px;
-      border-bottom:1px solid rgba(255,255,255,.07); }}
-    .mk-table-box {{ background:#13111f; border-radius:12px; overflow:hidden;
-      border:1px solid rgba(255,255,255,.07); margin-bottom:8px; }}
-    .mk-scroll {{ max-height:420px; overflow-y:auto; }}
-    .mk-scroll::-webkit-scrollbar {{ width:5px; }}
+      border:1px solid rgba(139,92,246,.4); border-radius:16px; padding:22px 26px; margin-bottom:24px; }}
+    .mk-target-title {{ color:#c4b5fd; font-size:14px; font-weight:700; letter-spacing:.04em; margin-bottom:18px; }}
+    .mk-card-row {{ display:flex; gap:28px; flex-wrap:wrap; }}
+    .mk-card-item {{ flex:1; min-width:180px; }}
+    .mk-ci-label {{ color:rgba(255,255,255,.45); font-size:12px; margin-bottom:6px; }}
+    .mk-ci-value {{ color:#fff; font-size:17px; font-weight:700; }}
+    .mk-ci-sub {{ color:rgba(255,255,255,.45); font-size:13px; margin-top:5px; }}
+    .mk-no-target {{ color:#f87171; font-size:14px; margin-bottom:18px; }}
+    .mk-section-label {{ color:rgba(255,255,255,.75); font-size:13px; font-weight:700;
+      letter-spacing:.05em; text-transform:uppercase;
+      padding-bottom:12px; margin-bottom:14px; margin-top:24px;
+      border-bottom:1px solid rgba(255,255,255,.1); }}
+    .mk-table-box {{ background:#13111f; border-radius:14px; overflow:hidden;
+      border:1px solid rgba(255,255,255,.08); margin-bottom:10px; }}
+    .mk-scroll {{ max-height:600px; overflow-y:auto; }}
+    .mk-scroll::-webkit-scrollbar {{ width:6px; }}
     .mk-scroll::-webkit-scrollbar-track {{ background:rgba(255,255,255,.03); }}
-    .mk-scroll::-webkit-scrollbar-thumb {{ background:rgba(167,139,250,.35); border-radius:3px; }}
-    .mk-table {{ width:100%; border-collapse:collapse; font-size:13px; }}
-    .mk-table thead tr {{ background:rgba(167,139,250,.1); }}
-    .mk-table th {{ color:rgba(255,255,255,.5); font-size:11px; font-weight:500;
-      letter-spacing:.06em; text-transform:uppercase;
-      padding:11px 12px; text-align:left; white-space:nowrap; }}
-    .mk-table td {{ padding:10px 12px; color:rgba(255,255,255,.8);
-      border-top:1px solid rgba(255,255,255,.05); vertical-align:middle; }}
-    .mk-table tr:hover td {{ background:rgba(255,255,255,.03); }}
-    .mk-badge-mine {{ background:rgba(167,139,250,.2); color:#c4b5fd;
-      border-radius:6px; padding:2px 7px; font-size:11px; font-weight:600; white-space:nowrap; }}
-    .mk-badge-comp {{ background:rgba(255,255,255,.07); color:rgba(255,255,255,.4);
-      border-radius:6px; padding:2px 7px; font-size:11px; white-space:nowrap; }}
-    .mk-rank-mine {{ background:#7c3aed; color:#fff; border-radius:6px;
-      padding:2px 8px; font-weight:700; font-size:13px; }}
-    .mk-rank-comp {{ color:rgba(255,255,255,.45); }}
-    .mk-len-ok  {{ color:#6ee7b7; font-weight:600; }}
-    .mk-len-bad {{ color:#f87171; font-weight:700; }}
-    .mk-price   {{ color:#fde68a; font-weight:600; }}
-    .mk-price-low {{ color:#6ee7b7; font-weight:700; }}
-    .mk-name {{ max-width:220px; white-space:normal; line-height:1.4; word-break:keep-all; }}
-    .mk-mall {{ color:rgba(255,255,255,.4); font-size:12px; }}
-    .mk-link a {{ color:#818cf8; font-weight:600; text-decoration:none; }}
-    .mk-link a:hover {{ text-decoration:underline; }}
+    .mk-scroll::-webkit-scrollbar-thumb {{ background:rgba(167,139,250,.4); border-radius:3px; }}
+    .mk-table {{ width:100%; border-collapse:collapse; font-size:15px; }}
+    .mk-table thead tr {{ background:rgba(167,139,250,.12); position:sticky; top:0; z-index:1; }}
+    .mk-table th {{ color:rgba(255,255,255,.6); font-size:12px; font-weight:600;
+      letter-spacing:.05em; text-transform:uppercase;
+      padding:14px 16px; text-align:left; white-space:nowrap; }}
+    .mk-table td {{ padding:14px 16px; color:rgba(255,255,255,.88);
+      border-top:1px solid rgba(255,255,255,.06); vertical-align:middle; line-height:1.5; }}
+    .mk-table tr:hover td {{ background:rgba(255,255,255,.04); }}
+    .mk-badge-mine {{ background:rgba(167,139,250,.25); color:#c4b5fd;
+      border-radius:7px; padding:4px 10px; font-size:13px; font-weight:700; white-space:nowrap; }}
+    .mk-badge-comp {{ background:rgba(255,255,255,.08); color:rgba(255,255,255,.45);
+      border-radius:7px; padding:4px 10px; font-size:13px; white-space:nowrap; }}
+    .mk-rank-mine {{ background:#7c3aed; color:#fff; border-radius:8px;
+      padding:4px 11px; font-weight:800; font-size:15px; }}
+    .mk-rank-comp {{ color:rgba(255,255,255,.5); font-size:15px; font-weight:600; }}
+    .mk-len-ok  {{ color:#6ee7b7; font-weight:700; font-size:14px; }}
+    .mk-len-bad {{ color:#f87171; font-weight:800; font-size:14px; }}
+    .mk-price   {{ color:#fde68a; font-weight:700; font-size:15px; }}
+    .mk-price-low {{ color:#6ee7b7; font-weight:800; font-size:15px; }}
+    .mk-name {{ max-width:360px; white-space:normal; line-height:1.6; word-break:keep-all; font-size:15px; }}
+    .mk-mall {{ color:rgba(255,255,255,.5); font-size:14px; }}
+    .mk-link a {{ color:#818cf8; font-weight:700; font-size:14px; text-decoration:none; }}
+    .mk-link a:hover {{ text-decoration:underline; color:#a5b4fc; }}
     </style></head><body>
     <div class="mk-stat-grid">
       <div class="mk-stat">
@@ -240,7 +236,7 @@ def build_result_html(df, store, target, limit):
       </div>
       <div class="mk-stat">
         <div class="mk-stat-label">⭐ {store} 현황</div>
-        <div class="mk-stat-value" style="color:#c4b5fd;font-size:18px">{mine_rank_str}</div>
+        <div class="mk-stat-value" style="color:#c4b5fd;font-size:20px">{mine_rank_str}</div>
         <div class="mk-stat-sub">{mine_count_str}</div>
       </div>
     </div>
@@ -252,9 +248,6 @@ def build_result_html(df, store, target, limit):
     </div>
     </body></html>"""
 
-# ============================================================
-#  🖼️ 메인 UI
-# ============================================================
 if not check_login():
     st.stop()
 
@@ -305,11 +298,9 @@ if run:
         st.warning("검색 결과가 없습니다.")
         st.stop()
 
-    # 결과 HTML 렌더링
     result_html = build_result_html(df, store, target, limit)
-    components.html(result_html, height=900, scrolling=True)
+    components.html(result_html, height=1100, scrolling=True)
 
-    # CSV 다운로드 (Streamlit 네이티브 버튼)
     fname = f"{store}_Ranking_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     csv_bytes = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
     st.download_button(
