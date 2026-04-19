@@ -116,41 +116,35 @@ def build_result_html(df, store, target, limit):
     if target.strip():
         tdf = filter_kw(df, target)
         if not tdf.empty:
-            t_min   = tdf['가격'].min()
-            t_min_r = tdf[tdf['가격'] == t_min].iloc[0]
-            my_t    = tdf[tdf['구분'] == 'mine']
-            if not my_t.empty:
-                mr       = my_t.iloc[0]
-                diff     = mr['가격'] - t_min
-                diff_str = "✅ 최저가 동일" if diff == 0 else f"🔺 최저가 대비 +{diff:,}원"
-                my_info  = f"""
-                <div class="mk-card-item">
-                  <div class="mk-ci-label">🐾 {store} 순위 / 가격</div>
-                  <div class="mk-ci-value">{mr['순위']}위 · {mr['가격']:,}원</div>
-                  <div class="mk-ci-sub">{diff_str}</div>
-                </div>"""
-            else:
-                my_info = f"""
-                <div class="mk-card-item">
-                  <div class="mk-ci-label">🐾 {store}</div>
-                  <div class="mk-ci-value" style="color:#ef4444">상위 {total}위 내 미노출</div>
-                </div>"""
-            target_html = f"""
-            <div class="mk-target-card">
-              <div class="mk-target-title">🎯 타겟 분석 — "{target}"</div>
-              <div class="mk-card-row">
-                <div class="mk-card-item">
-                  <div class="mk-ci-label">🥇 시장 최저가</div>
-                  <div class="mk-ci-value" style="color:#059669">{t_min:,}원</div>
-                  <div class="mk-ci-sub">{t_min_r['업체명']} · {t_min_r['순위']}위</div>
-                </div>
-                {my_info}
-                <div class="mk-card-item">
-                  <div class="mk-ci-label">📊 타겟 상품 수</div>
-                  <div class="mk-ci-value">{len(tdf)}개</div>
-                  <div class="mk-ci-sub">내 상품 {len(my_t)}개 포함</div>
-                </div>
+            t_min = tdf['가격'].min()
+            t_max = tdf['가격'].max()
+            my_t  = tdf[tdf['구분'] == 'mine']
+            mine_t_rank = ', '.join(str(r) for r in my_t['순위'].tolist()) if not my_t.empty else '미노출'
+
+            summary_cards = f"""
+            <div class="mk-stat-grid">
+              <div class="mk-stat">
+                <div class="mk-stat-label">🎯 타겟 상품 수</div>
+                <div class="mk-stat-value">{len(tdf)}<span class="mk-stat-unit">개</span></div>
+                <div class="mk-stat-sub">내 상품 {len(my_t)}개 포함</div>
               </div>
+              <div class="mk-stat">
+                <div class="mk-stat-label">💰 타겟 최저가</div>
+                <div class="mk-stat-value" style="color:#059669">{t_min:,}<span class="mk-stat-unit">원</span></div>
+                <div class="mk-stat-sub">최고가 {t_max:,}원</div>
+              </div>
+              <div class="mk-stat">
+                <div class="mk-stat-label">⭐ {store} 순위</div>
+                <div class="mk-stat-value" style="color:#7c3aed;font-size:20px">{mine_t_rank}</div>
+                <div class="mk-stat-sub">{"내 상품 노출 중" if not my_t.empty else "미노출"}</div>
+              </div>
+            </div>"""
+
+            target_html = f"""
+            <div class="mk-section-label">🎯 타겟 분석 — "{target}" ({len(tdf)}개)</div>
+            {summary_cards}
+            <div class="mk-table-box">
+              <table class="mk-table">{thead}<tbody>{make_rows(tdf, t_min)}</tbody></table>
             </div>"""
         else:
             target_html = f'<div class="mk-no-target">🎯 "{target}" 키워드 포함 상품이 상위 {total}위 내에 없습니다.</div>'
