@@ -112,6 +112,11 @@ def build_result_html(df, store, target, limit):
     mine_rank_str  = ', '.join(str(r) for r in mine_df['순위'].tolist()) if not mine_df.empty else '미노출'
     mine_count_str = f"{len(mine_df)}개 노출"
 
+    thead = """<thead><tr>
+      <th>순위</th><th>구분</th><th>썸네일</th><th>상품명</th>
+      <th>글자수</th><th>가격</th><th>업체명</th><th>링크</th>
+    </tr></thead>"""
+
     target_html = ""
     if target.strip():
         tdf = filter_kw(df, target)
@@ -148,11 +153,6 @@ def build_result_html(df, store, target, limit):
             </div>"""
         else:
             target_html = f'<div class="mk-no-target">🎯 "{target}" 키워드 포함 상품이 상위 {total}위 내에 없습니다.</div>'
-
-    thead = """<thead><tr>
-      <th>순위</th><th>구분</th><th>썸네일</th><th>상품명</th>
-      <th>글자수</th><th>가격</th><th>업체명</th><th>링크</th>
-    </tr></thead>"""
 
     my_table = ""
     if not mine_df.empty:
